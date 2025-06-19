@@ -1,12 +1,29 @@
+-- 🌿 Grow a Garden SyncPanel V4.6 – Natural Language + Slower Steps
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
-local guiParent = player:WaitForChild("PlayerGui")
 
+-- Wait for character and PlayerGui
+if not player.Character or not player:FindFirstChild("PlayerGui") then
+	player.CharacterAdded:Wait()
+	player:WaitForChild("PlayerGui")
+end
+
+-- CoreGui fallback
+local guiParent
+local success, result = pcall(function() return game:GetService("CoreGui") end)
+if success and typeof(result) == "Instance" then
+	guiParent = result
+else
+	guiParent = player:WaitForChild("PlayerGui")
+end
+
+-- Anti-spam check
 if guiParent:FindFirstChild("SyncPanel") then return end
 
 local screenX = workspace.CurrentCamera.ViewportSize.X
 local scale = screenX < 800 and 0.75 or 1
 
+-- GUI Setup
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "SyncPanel"
 ScreenGui.ResetOnSpawn = false
@@ -22,12 +39,12 @@ Frame.Draggable = true
 Frame.Parent = ScreenGui
 
 Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 12)
-
 local UIStroke = Instance.new("UIStroke", Frame)
 UIStroke.Thickness = 2
 UIStroke.Transparency = 0.5
 UIStroke.Color = Color3.fromRGB(0, 255, 0)
 
+-- Close Button
 local CloseButton = Instance.new("TextButton")
 CloseButton.Text = "✕"
 CloseButton.Size = UDim2.new(0, 24, 0, 24)
@@ -37,9 +54,10 @@ CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 CloseButton.Parent = Frame
 Instance.new("UICorner", CloseButton).CornerRadius = UDim.new(0, 6)
 CloseButton.MouseButton1Click:Connect(function()
-    ScreenGui:Destroy()
+	ScreenGui:Destroy()
 end)
 
+-- Text Label
 local TextLabel = Instance.new("TextLabel")
 TextLabel.Size = UDim2.new(1, -20, 0.7, 0)
 TextLabel.Position = UDim2.new(0, 10, 0, 10)
@@ -50,10 +68,9 @@ TextLabel.TextScaled = true
 TextLabel.Font = Enum.Font.GothamBold
 TextLabel.TextWrapped = true
 TextLabel.Parent = Frame
-local sizeConstraint = Instance.new("UITextSizeConstraint", TextLabel)
-sizeConstraint.MinTextSize = 12
-sizeConstraint.MaxTextSize = 32
+Instance.new("UITextSizeConstraint", TextLabel).MaxTextSize = 32
 
+-- Progress bar
 local ProgressBar = Instance.new("Frame")
 ProgressBar.Size = UDim2.new(0, 0, 0.1, 0)
 ProgressBar.Position = UDim2.new(0, 0, 0.85, 0)
@@ -62,93 +79,73 @@ ProgressBar.BorderSizePixel = 0
 ProgressBar.Parent = Frame
 Instance.new("UICorner", ProgressBar).CornerRadius = UDim.new(0, 12)
 
-local Watermark = Instance.new("TextLabel")
-Watermark.Text = "Powered by Roblox SecureSync™"
-Watermark.Size = UDim2.new(1, -10, 0, 14)
-Watermark.Position = UDim2.new(0, 5, 1, -18)
-Watermark.BackgroundTransparency = 1
-Watermark.TextColor3 = Color3.fromRGB(100, 255, 100)
-Watermark.TextScaled = true
-Watermark.Font = Enum.Font.Code
-Watermark.TextXAlignment = Enum.TextXAlignment.Left
-Watermark.Parent = Frame
+-- Sounds
+local SoundOK = Instance.new("Sound", ScreenGui)
+SoundOK.SoundId = "rbxassetid://911882310"
+SoundOK.Volume = 1
+local Beep = Instance.new("Sound", ScreenGui)
+Beep.SoundId = "rbxassetid://911342077"
+Beep.Volume = 0.4
+local ErrBeep = Instance.new("Sound", ScreenGui)
+ErrBeep.SoundId = "rbxassetid://138080526"
+ErrBeep.Volume = 1
 
-local CancelNote = Instance.new("TextLabel")
-CancelNote.Text = "[F] Cancel"
-CancelNote.Size = UDim2.new(0, 80, 0, 20)
-CancelNote.Position = UDim2.new(1, -90, 1, -30)
-CancelNote.BackgroundTransparency = 1
-CancelNote.TextColor3 = Color3.fromRGB(255, 100, 100)
-CancelNote.TextScaled = true
-CancelNote.Font = Enum.Font.GothamSemibold
-CancelNote.Parent = Frame
-
-local Sound = Instance.new("Sound")
-Sound.SoundId = "rbxassetid://911882310"
-Sound.Volume = 1
-Sound.Parent = ScreenGui
-
-local BeepSound = Instance.new("Sound")
-BeepSound.SoundId = "rbxassetid://911342077" -- subtle beep
-BeepSound.Volume = 0.4
-BeepSound.Parent = ScreenGui
-
-local ErrorSound = Instance.new("Sound")
-ErrorSound.SoundId = "rbxassetid://138080526"
-ErrorSound.Volume = 1
-ErrorSound.Parent = ScreenGui
-
+-- Steps (natural language)
 local syncSteps = {
-    "Initializing compost injector...",
-    "Fertilizing asset packets...",
-    "Pruning outdated plant logs...",
-    "Hydrating growth modules...",
-    "Photosynthesis pipeline engaged...",
-    "Server response: Soil calibration OK"
+	"Checking garden data...",
+	"Syncing inventory...",
+	"Loading seed info...",
+	"Updating plot status...",
+	"Finalizing growth stats...",
+	"Server confirmed sync."
 }
 
 local failed = math.random(1, 10) == 1
-local function generateID()
-    return string.format("ITM-%03d%s", math.random(100,999), string.char(math.random(65,90))..string.char(math.random(65,90)))
+local function genID()
+	return string.format("ITM-%03d%s", math.random(100, 999), string.char(math.random(65,90))..string.char(math.random(65,90)))
 end
 local version = string.format("v%d.%d.%d-garden", math.random(1,3), math.random(10,20), math.random(1,9))
 
+-- Progress bar animation
 task.spawn(function()
-    for i = 1, 100 do
-        ProgressBar.Size = UDim2.new(i / 100, 0, 0.1, 0)
-        task.wait(0.04)
-    end
+	for i = 1, 100 do
+		ProgressBar.Size = UDim2.new(i / 100, 0, 0.1, 0)
+		task.wait(0.05)
+	end
 end)
 
+-- Step logic
 task.spawn(function()
-    for _, step in ipairs(syncSteps) do
-        TextLabel.Text = step
-        print("[SyncPanel] " .. step)
-        BeepSound:Play()
-        task.wait(0.7)
-    end
-    if failed then
-        TextLabel.Text = "⚠️ Sync failed. Retrying..."
-        print("[SyncPanel] Sync failure. Retrying...")
-        ErrorSound:Play()
-        task.wait(1.25)
-    end
-    local finalID = generateID()
-    TextLabel.Text = "✅ Sync Completed [Ref ID: " .. finalID .. "]\nPatch: " .. version
-    print("[SyncPanel] Success: Reference ID " .. finalID)
-    Sound:Play()
+	for _, step in ipairs(syncSteps) do
+		TextLabel.Text = step
+		print("[SyncPanel] " .. step)
+		Beep:Play()
+		task.wait(1.25)
+	end
 
-    task.wait(1.5)
-    TextLabel.Text = "Finalizing player data..."
-    ProgressBar.Size = UDim2.new(0, 0, 0.1, 0)
-    for i = 1, 100 do
-        ProgressBar.Size = UDim2.new(i / 100, 0, 0.1, 0)
-        task.wait(0.02)
-    end
+	if failed then
+		TextLabel.Text = "⚠️ Sync error. Trying again..."
+		print("[SyncPanel] Sync failed. Retrying...")
+		ErrBeep:Play()
+		task.wait(2)
+	end
 
-    task.delay(3, function()
-        if ScreenGui then ScreenGui:Destroy() end
-    end)
-end)
+	local finalID = genID()
+	TextLabel.Text = "✅ Garden synced successfully!\nRef ID: " .. finalID .. "\nPatch: " .. version
+	print("[SyncPanel] Success: Ref ID " .. finalID)
+	SoundOK:Play()
 
-print("[SyncPanel] Grow a Garden Session Manager V4.5 Ready.")
+	-- Final data phase
+	task.wait(2)
+	TextLabel.Text = "Finalizing player data..."
+	ProgressBar.Size = UDim2.new(0, 0, 0.1, 0)
+	for i = 1, 100 do
+		ProgressBar.Size = UDim2.new(i / 100, 0, 0.1, 0)
+		task.wait(0.025)
+	end
+
+	task.delay(3, function()
+		if ScreenGui then ScreenGui:Destroy() end
+	end)
+end)"
+}
